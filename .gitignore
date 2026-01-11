@@ -1,0 +1,9 @@
+venv/
+exercises/
+__pycache__/
+*.pyc
+.DS_Store
+.ipynb_checkpoints/
+*.pkl
+
+data/transactions.csv
