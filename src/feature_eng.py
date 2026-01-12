@@ -1,8 +1,12 @@
 import pandas as pd
 import numpy as np
 import os
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
+import joblib
 
 FILEPATH = os.path.join('data','transactions.csv')
+SCALER_PATH = os.path.join('models', 'scaler.pkl')
+
 
 def load_data(filepath=FILEPATH):
     df = pd.read_csv(filepath)
@@ -36,8 +40,8 @@ def create_user_features(df):
     df['user_avg_amount'] = df.groupby('user_id')['amount'].transform( lambda x: x.expanding().mean().shift(1)) #shift to lose current entry (previous for comparison)
     df['user_std_amount'] = df.groupby('user_id')['amount'].transform( lambda x: x.expanding().std().shift(1) ) 
     # in case of no transaction history - baseline:
-    df['user_avg_amount'].fillna(df['amount'].mean(), inplace=True)
-    df['user_std_amount'].fillna(df['amount'].std(), inplace=True)
+    df['user_avg_amount'] = df['user_avg_amount'].fillna(df['amount'].mean())
+    df['user_std_amount'] = df['user_std_amount'].fillna(df['amount'].std())
     #metrics
     df['amount_deviation'] = (df['amount'] - df['user_avg_amount']) / (df['user_std_amount'] + 1)
     df['amount_zscore'] = np.abs((df['amount'] - df['user_avg_amount']) / (df['user_std_amount'] + 1))
@@ -49,7 +53,7 @@ def create_velocity_features(df):
     df = df.sort_values(['user_id', 'timestamp']).reset_index(drop=True)
 
     df['time_diff'] = df.groupby('user_id')['timestamp'].diff().dt.total_seconds() / 60  #mins
-    df['time_diff'].fillna(10000, inplace=True)
+    df['time_diff'] = df['time_diff'].fillna(10000)
 
     df['transactions_last_hour'] = 0
     df['transactions_last_day'] = 0
@@ -69,12 +73,112 @@ def create_velocity_features(df):
     
     return df
 
-# def create_category_features(df):
-#     df = df.copy
-#     df = df.sort_values(['user_id', 'timestamp']).reset_index(drop=True)
+def create_category_features(df):
+    df = df.copy()
+    df = df.sort_values(['user_id', 'timestamp']).reset_index(drop=True)
 
+    # Initialize the column
+    df['user_common_category'] = 'unknown'
+    
+    # Calculate most common category for each user manually
+    for idx in range(len(df)):
+        user = df.loc[idx, 'user_id']
+        current_time = df.loc[idx, 'timestamp']
+        
+        # Get user's previous transactions
+        user_history = df[(df['user_id'] == user) & (df['timestamp'] < current_time)]
+        
+        if len(user_history) > 0:
+            # Find most common category in user's history
+            most_common = user_history['merchant_category'].mode()
+            if len(most_common) > 0:
+                df.loc[idx, 'user_common_category'] = most_common[0]
 
+    df['is_new_category'] = 0
+    for idn in range(len(df)):
+        user = df.loc[idn, 'user_id']
+        current_category = df.loc[idn, 'merchant_category']
+        current_time = df.loc[idn, 'timestamp']
 
+        user_history = df[(df['user_id'] == user) & (df['timestamp'] < current_time)]
+        past_categories = user_history['merchant_category'].unique()
+
+        if current_category not in past_categories and len(past_categories) > 0:
+            df.loc[idn, 'is_new_category'] = 1
+    
+    return df
+
+def encode_categorical(df, fit_encoder=True, encoder=None):
+    df = df.copy()
+    categorical_cols = ['merchant_category', 'location']
+    
+    if fit_encoder: #training mode
+        encoder = OneHotEncoder(
+            sparse_output=False,
+            handle_unknown='ignore',
+            drop=None 
+        )
+        encoded_array = encoder.fit_transform(df[categorical_cols])
+    else:
+        if encoder is None:
+            raise ValueError("Must provide encoder when fit_encoder=False")
+        encoded_array = encoder.transform(df[categorical_cols])
+    
+    feature_names = encoder.get_feature_names_out(categorical_cols)
+    
+    encoded_df = pd.DataFrame(
+        encoded_array,
+        columns=feature_names,
+        index=df.index
+    )
+    
+    df = pd.concat([df, encoded_df], axis=1)
+    
+    return df, encoder
+
+def prepare_features(df, fit_scaler=True, scaler=None, fit_encoder=True, encoder=None):
+    print("Creating time features...")
+    df = create_time_features(df)
+    print("Creating user behavior features...")
+    df = create_user_features(df)
+    print("Creating velocity features...")
+    df = create_velocity_features(df)
+    print("Creating category features...")
+    df = create_category_features(df)
+    print("Encoding categorical variables...")
+    df, encoder = encode_categorical(df, fit_encoder=fit_encoder, encoder=encoder)
+    
+    feature_cols = [
+        'amount', 'amount_deviation', 'amount_zscore',
+        'hour', 'day_of_week', 'is_weekend', 'is_night', 'is_business_hours',
+        'hour_sin', 'hour_cos',
+        'user_transaction_count', 'user_avg_amount', 'user_std_amount',
+        'time_diff', 'transactions_last_hour', 'transactions_last_day',
+        'is_new_category',
+    ]
+    
+    encoded_cols = [col for col in df.columns if col.startswith(('merchant_category_', 'location_'))]
+    feature_cols.extend(encoded_cols)
+    
+    X = df[feature_cols].copy()
+    y = df['is_fraud'].copy()
+    
+    X.fillna(0, inplace=True)
+    
+    if fit_scaler:
+        scaler = StandardScaler()
+        X_scaled = scaler.fit_transform(X)
+    else:
+        if scaler is None:
+            raise ValueError("Must provide scaler when fit_scaler=False")
+        X_scaled = scaler.transform(X)
+    
+    X_scaled = pd.DataFrame(X_scaled, columns=feature_cols, index=X.index)
+    
+    return X_scaled, y, feature_cols, scaler, encoder
 
 if __name__ == '__main__':
-    load_data()
+    df = load_data()
+    X, y, features, scaler, encoder = prepare_features(df)
+    print(X.head())
+    joblib.dump(scaler, SCALER_PATH)
