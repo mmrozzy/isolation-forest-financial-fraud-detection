@@ -80,16 +80,13 @@ def create_category_features(df):
     # Initialize the column
     df['user_common_category'] = 'unknown'
     
-    # Calculate most common category for each user manually
     for idx in range(len(df)):
         user = df.loc[idx, 'user_id']
         current_time = df.loc[idx, 'timestamp']
         
-        # Get user's previous transactions
         user_history = df[(df['user_id'] == user) & (df['timestamp'] < current_time)]
         
         if len(user_history) > 0:
-            # Find most common category in user's history
             most_common = user_history['merchant_category'].mode()
             if len(most_common) > 0:
                 df.loc[idx, 'user_common_category'] = most_common[0]
