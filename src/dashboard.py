@@ -11,7 +11,6 @@ st.set_page_config(
     layout="wide"
 )
 
-
 @st.cache_resource
 def load_models():
     try: 
@@ -36,10 +35,6 @@ def load_transaction_data():
         st.error("Transaction file not found")
         st.info("Run generating script first")
         st.stop()
-
-with st.spinner("Loading models and data...."):
-    model, scaler, encoder, feature_names = load_models()
-    df_all = load_transaction_data()
 
 # == HELPERS ==
 
@@ -75,9 +70,77 @@ def predict_transaction(transaction_df, model, scaler, encoder):
         'color': color
     }
     
+with st.spinner("Loading models and data...."):
+    model, scaler, encoder, feature_names = load_models()
+    df_all = load_transaction_data()
+
+if 'processed_transactions' not in st.session_state:
+    st.session_state.processed_transactions = []
+if 'fraud_alerts' not in st.session_state:
+    st.session_state.fraud_alerts = []
+if 'current_index' not in st.session_state:
+    st.session_state.current_index = 0
+if 'is_streaming' not in st.session_state:
+    st.session_state.is_streaming = False
+if 'stats' not in st.session_state:
+    st.session_state.stats = {
+        'total_processed': 0,
+        'total_fraud_detected': 0,
+        'total_actual_fraud': 0,
+        'total_false_alarms': 0
+    }
+
+
 st.title("Fraud Detection Dash")
 st.markdown("**Real-time transaction monitoring with ML-powered detection**")
 st.markdown("---")
+
+with st.sidebar:
+    st.header("Controls")
+    st.subheader("Transaction Stream")
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        if st.button("Start", use_container_width=True):
+            st.session_state.is_streaming = True
+            st.rerun()
+    
+    with col2:
+        if st.button("Stop", use_container_width=True):
+            st.session_state.is_streaming = False
+            st.rerun()
+
+    if st.button("Reset", use_container_width=True):
+        st.session_state.processed_transactions = []
+        st.session_state.fraud_alerts = []
+        st.session_state.current_index = 0
+        st.session_state.is_streaming = False
+        st.session_state.stats = {
+            'total_processed': 0,
+            'total_fraud_detected': 0,
+            'total_actual_fraud': 0,
+            'total_false_alarms': 0
+        }
+        st.rerun()
+
+    st.markdown("---")
+    st.subheader("Settings")
+
+    stream_speed = st.slider(
+        "Stream Speed (tx/sec)",
+        min_value = 1,
+        max_value = 10,
+        value = 2
+    )
+
+    show_normal = st.checkbox("Show Normal Transactions", value=True)
+
+    st.markdown("---")
+    st.subheader("Session Stats")
+    st.metric("Processed", st.session_state.stats['total_processed'])
+    st.metric("Streaming", "Yes" if st.session_state.is_streaming else "No")
+    st.metric("Current Index", st.session_state.current_index)
 
 col1, col2, col3, col4 = st.columns(4)
 
