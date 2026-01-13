@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.ensemble import IsolationForest
+from sklearn.svm import OneClassSVM
 from sklearn.metrics import (
     confusion_matrix, classification_report, average_precision_score, roc_auc_score,
      roc_curve, precision_recall_curve,
@@ -33,6 +34,21 @@ def train_isolation_forest(X_train, contamination = 0.025):
 
     model.fit(X_train)
     print("Training done!")
+    return model
+
+def train_one_class_svm(X_train, nu=0.05):
+    model = OneClassSVM(
+        kernel='rbf',  # Radial Basis Function (Gaussian kernel)
+        gamma='auto',  # Kernel coefficient (auto = 1/n_features)
+        nu=nu,  # Expected outlier fraction
+        cache_size=500,  # Memory cache for kernel (MB)
+        verbose=True
+    )
+    
+    print(f"Training on {len(X_train)} samples with nu={nu}...")
+    model.fit(X_train)
+    
+    print("Training complete!")
     return model
 
 def eval_model(model, X, y, dataset_name="Test"):
@@ -169,7 +185,6 @@ def plot_evaluation_metrics(train_metrics, test_metrics, y_train, y_test):
     plt.savefig('models/model_evaluation.png', dpi=300, bbox_inches='tight')
     print("\nEvaluation plots saved to: models/model_evaluation.png")
 
-
 def analyze_feature_importance(model, feature_names, X_train, top_n=15):
     print(f"\nStarting feature importance analysis for {len(feature_names)} features...")
     baseline_scores = model.decision_function(X_train)
@@ -222,61 +237,32 @@ def main():
         encoder=encoder  # Pass the encoder from training
     )
 
-    contamination = y_train.mean()
-    model = train_isolation_forest(X_train, contamination=contamination)
+    #contamination = y_train.mean()        
+    model_if = train_isolation_forest(X_train, contamination=0.05)
+    model_svm = train_one_class_svm(X_train, nu=0.05)
+    
+    train_metrics_if = eval_model(model_if, X_train, y_train, "Training (IF)")
+    test_metrics_if = eval_model(model_if, X_test, y_test, "Test (IF)")
 
-    train_metrics = eval_model(model, X_train, y_train, "Training")
-    test_metrics = eval_model(model, X_test, y_test, "Test")
-
-    plot_evaluation_metrics(train_metrics, test_metrics, y_train, y_test)
+    train_metrics_svm = eval_model(model_svm, X_train, y_train, "Training (SVM)")
+    test_metrics_svm = eval_model(model_svm, X_test, y_test, "Test (SVM)")
     
-    sample_size = min(1000, len(X_train))
-    X_sample = X_train.sample(sample_size, random_state=42)
-    feature_importance_df = analyze_feature_importance(
-        model, feature_names, X_sample
-    )
-    
-    joblib.dump(model, 'models/isolation_forest.pkl')
-    print("✓ Model saved to: models/isolation_forest.pkl")
-    
-    joblib.dump(scaler, 'models/scaler.pkl')
-    print("✓ Scaler saved to: models/scaler.pkl")
-    
-    joblib.dump(feature_names, 'models/feature_names.pkl')
-    print("✓ Feature names saved to: models/feature_names.pkl")
-    
-    feature_importance_df.to_csv('models/feature_importance.csv', index=False)
-    print("✓ Feature importance saved to: models/feature_importance.csv")
-    
-    metrics_summary = {
-        'train': {
-            'roc_auc': float(train_metrics['roc_auc']),
-            'avg_precision': float(train_metrics['avg_precision']),
-            'false_alarm_rate': float(train_metrics['false_alarm_rate']),
-            'fraud_detection_rate': float(train_metrics['fraud_detection_rate'])
-        },
-        'test': {
-            'roc_auc': float(test_metrics['roc_auc']),
-            'avg_precision': float(test_metrics['avg_precision']),
-            'false_alarm_rate': float(test_metrics['false_alarm_rate']),
-            'fraud_detection_rate': float(test_metrics['fraud_detection_rate'])
-        }
-    }
-    
-    import json
-    with open('models/metrics_summary.json', 'w') as f:
-        json.dump(metrics_summary, f, indent=4)
-    print("✓ Metrics summary saved to: models/metrics_summary.json")
-    
-    #Summary
+    # Compare
     print("\n" + "="*70)
-    print(" TRAINING COMPLETE!")
+    print(" MODEL COMPARISON")
     print("="*70)
-    print("\nModel Performance Summary:")
-    print(f"  Test ROC-AUC: {test_metrics['roc_auc']:.4f}")
-    print(f"  Test Average Precision: {test_metrics['avg_precision']:.4f}")
-    print(f"  Fraud Detection Rate: {test_metrics['fraud_detection_rate']:.2f}%")
-    print(f"  False Alarm Rate: {test_metrics['false_alarm_rate']:.2f}%")
+    print("\nIsolation Forest:")
+    print(f"  ROC-AUC: {test_metrics_if['roc_auc']:.4f}")
+    print(f"  Fraud Detection: {test_metrics_if['fraud_detection_rate']:.2f}%")
+    print(f"  False Alarms: {test_metrics_if['false_alarm_rate']:.2f}%")
     
+    print("\nOne-Class SVM:")
+    print(f"  ROC-AUC: {test_metrics_svm['roc_auc']:.4f}")
+    print(f"  Fraud Detection: {test_metrics_svm['fraud_detection_rate']:.2f}%")
+    print(f"  False Alarms: {test_metrics_svm['false_alarm_rate']:.2f}%")
+    
+    # Save both for ensemble option
+    joblib.dump(model_if, 'models/isolation_forest.pkl')
+    joblib.dump(model_svm, 'models/one_class_svm.pkl')    
 
 if __name__ == "__main__": main()

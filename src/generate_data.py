@@ -10,7 +10,7 @@ random.seed(42)
 np.random.seed(42)
 
 NUM_USERS = 150
-NUM_TRANSACTIONS = 1200
+NUM_TRANSACTIONS = 12000
 FRAUD_RATE = 0.025  # 2.5% fraud rate
 START_DATE = datetime(2024, 6, 1)
 END_DATE = datetime(2024, 12, 31)
