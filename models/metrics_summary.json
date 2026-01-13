@@ -1,14 +1,30 @@
 {
-    "train": {
-        "roc_auc": 0.9588144111370843,
-        "avg_precision": 0.6743352488418736,
-        "false_alarm_rate": 3.237105930667955,
-        "fraud_detection_rate": 76.9607843137255
+    "isolation_forest": {
+        "train": {
+            "roc_auc": 0.9588144111370843,
+            "avg_precision": 0.6743352488418736,
+            "false_alarm_rate": 3.237105930667955,
+            "fraud_detection_rate": 76.9607843137255
+        },
+        "test": {
+            "roc_auc": 0.9359410016564358,
+            "avg_precision": 0.5885742320948478,
+            "false_alarm_rate": 6.927798889213681,
+            "fraud_detection_rate": 80.20833333333334
+        }
     },
-    "test": {
-        "roc_auc": 0.9359410016564358,
-        "avg_precision": 0.5885742320948478,
-        "false_alarm_rate": 6.927798889213681,
-        "fraud_detection_rate": 80.20833333333334
+    "one_class_svm": {
+        "train": {
+            "roc_auc": 0.8689135516508816,
+            "avg_precision": 0.34499962924870814,
+            "false_alarm_rate": 3.5994685348472033,
+            "fraud_detection_rate": 61.76470588235294
+        },
+        "test": {
+            "roc_auc": 0.8515602163110201,
+            "avg_precision": 0.22143494165254568,
+            "false_alarm_rate": 7.307804735457468,
+            "fraud_detection_rate": 61.458333333333336
+        }
     }
 }

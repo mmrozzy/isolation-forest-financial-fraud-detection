@@ -11,7 +11,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import joblib
 
-
 def temporal_train_test_split(df, test_months=2):
     df = df.sort_values('timestamp').reset_index(drop=True)
     max_date = df['timestamp'].max()
@@ -227,17 +226,16 @@ def main():
 
     X_train, y_train, feature_names, scaler, encoder = prepare_features(
         train_df, 
-        fit_scaler=True  # Fit new scaler on training data
+        fit_scaler=True
     )
     X_test, y_test, _, _, _ = prepare_features(
         test_df, 
-        fit_scaler=False,  # Use existing scaler
-        scaler=scaler,  # Pass the scaler from training
-        fit_encoder=False,  # Use existing encoder
-        encoder=encoder  # Pass the encoder from training
+        fit_scaler=False,
+        scaler=scaler,
+        fit_encoder=False,
+        encoder=encoder
     )
 
-    #contamination = y_train.mean()        
     model_if = train_isolation_forest(X_train, contamination=0.05)
     model_svm = train_one_class_svm(X_train, nu=0.05)
     
@@ -247,7 +245,6 @@ def main():
     train_metrics_svm = eval_model(model_svm, X_train, y_train, "Training (SVM)")
     test_metrics_svm = eval_model(model_svm, X_test, y_test, "Test (SVM)")
     
-    # Compare
     print("\n" + "="*70)
     print(" MODEL COMPARISON")
     print("="*70)
@@ -261,8 +258,49 @@ def main():
     print(f"  Fraud Detection: {test_metrics_svm['fraud_detection_rate']:.2f}%")
     print(f"  False Alarms: {test_metrics_svm['false_alarm_rate']:.2f}%")
     
-    # Save both for ensemble option
+    print("\n" + "="*70)
+    print(" SAVING TRAINED MODEL AND ARTIFACTS")
+    print("="*70)
+    
     joblib.dump(model_if, 'models/isolation_forest.pkl')
-    joblib.dump(model_svm, 'models/one_class_svm.pkl')    
+    joblib.dump(model_svm, 'models/one_class_svm.pkl')
+    joblib.dump(scaler, 'models/scaler.pkl')
+    joblib.dump(encoder, 'models/encoder.pkl')
+    joblib.dump(feature_names, 'models/feature_names.pkl')
+    
+    import json
+    metrics_summary = {
+        'isolation_forest': {
+            'train': {
+                'roc_auc': float(train_metrics_if['roc_auc']),
+                'avg_precision': float(train_metrics_if['avg_precision']),
+                'false_alarm_rate': float(train_metrics_if['false_alarm_rate']),
+                'fraud_detection_rate': float(train_metrics_if['fraud_detection_rate'])
+            },
+            'test': {
+                'roc_auc': float(test_metrics_if['roc_auc']),
+                'avg_precision': float(test_metrics_if['avg_precision']),
+                'false_alarm_rate': float(test_metrics_if['false_alarm_rate']),
+                'fraud_detection_rate': float(test_metrics_if['fraud_detection_rate'])
+            }
+        },
+        'one_class_svm': {
+            'train': {
+                'roc_auc': float(train_metrics_svm['roc_auc']),
+                'avg_precision': float(train_metrics_svm['avg_precision']),
+                'false_alarm_rate': float(train_metrics_svm['false_alarm_rate']),
+                'fraud_detection_rate': float(train_metrics_svm['fraud_detection_rate'])
+            },
+            'test': {
+                'roc_auc': float(test_metrics_svm['roc_auc']),
+                'avg_precision': float(test_metrics_svm['avg_precision']),
+                'false_alarm_rate': float(test_metrics_svm['false_alarm_rate']),
+                'fraud_detection_rate': float(test_metrics_svm['fraud_detection_rate'])
+            }
+        }
+    }
+    
+    with open('models/metrics_summary.json', 'w') as f:
+        json.dump(metrics_summary, f, indent=4)
 
 if __name__ == "__main__": main()
