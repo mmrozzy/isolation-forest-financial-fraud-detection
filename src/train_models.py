@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from sklearn.ensemble import IsolationForest
 from sklearn.metrics import (
     confusion_matrix, classification_report, average_precision_score, roc_auc_score,
@@ -7,6 +8,7 @@ from sklearn.metrics import (
 from feature_eng import load_data, prepare_features
 import matplotlib.pyplot as plt
 import seaborn as sns
+import joblib
 
 
 def temporal_train_test_split(df, test_months=2):
@@ -166,7 +168,42 @@ def plot_evaluation_metrics(train_metrics, test_metrics, y_train, y_test):
     plt.tight_layout() 
     plt.savefig('models/model_evaluation.png', dpi=300, bbox_inches='tight')
     print("\nEvaluation plots saved to: models/model_evaluation.png")
-    plt.show()
+
+
+def analyze_feature_importance(model, feature_names, X_train, top_n=15):
+    print(f"\nStarting feature importance analysis for {len(feature_names)} features...")
+    baseline_scores = model.decision_function(X_train)
+    print(f"Calculated baseline scores for {len(X_train)} samples")
+    
+    importances = []
+    for i, feature in enumerate(feature_names):
+        X_pert = X_train.copy()
+        X_train.iloc[:,i] = np.random.permutation(X_pert.iloc[:,1])
+        pert_scores = model.decision_function(X_pert)
+
+        importance = np.abs(pert_scores - baseline_scores).mean()
+        importances.append(importance)
+
+    feature_importance_df = pd.DataFrame({
+        'feature': feature_names,
+        'importance': importances
+    }).sort_values('importance', ascending=False)
+        
+    plt.figure(figsize=(10, 8))
+    top_features = feature_importance_df.head(top_n)
+    
+    # Horizontal bar chart
+    plt.barh(range(len(top_features)), top_features['importance'])
+    plt.yticks(range(len(top_features)), top_features['feature'])
+    plt.xlabel('Importance Score')
+    plt.title(f'Top {top_n} Most Important Features for Fraud Detection')
+    plt.gca().invert_yaxis() 
+    plt.tight_layout()
+    plt.savefig('models/feature_importance.png', dpi=300, bbox_inches='tight')
+    print("\nFeature importance plot saved to: models/feature_importance.png")
+    
+    return feature_importance_df
+
 
 def main():
     df = load_data()
@@ -192,6 +229,54 @@ def main():
     test_metrics = eval_model(model, X_test, y_test, "Test")
 
     plot_evaluation_metrics(train_metrics, test_metrics, y_train, y_test)
-
+    
+    sample_size = min(1000, len(X_train))
+    X_sample = X_train.sample(sample_size, random_state=42)
+    feature_importance_df = analyze_feature_importance(
+        model, feature_names, X_sample
+    )
+    
+    joblib.dump(model, 'models/isolation_forest.pkl')
+    print("✓ Model saved to: models/isolation_forest.pkl")
+    
+    joblib.dump(scaler, 'models/scaler.pkl')
+    print("✓ Scaler saved to: models/scaler.pkl")
+    
+    joblib.dump(feature_names, 'models/feature_names.pkl')
+    print("✓ Feature names saved to: models/feature_names.pkl")
+    
+    feature_importance_df.to_csv('models/feature_importance.csv', index=False)
+    print("✓ Feature importance saved to: models/feature_importance.csv")
+    
+    metrics_summary = {
+        'train': {
+            'roc_auc': float(train_metrics['roc_auc']),
+            'avg_precision': float(train_metrics['avg_precision']),
+            'false_alarm_rate': float(train_metrics['false_alarm_rate']),
+            'fraud_detection_rate': float(train_metrics['fraud_detection_rate'])
+        },
+        'test': {
+            'roc_auc': float(test_metrics['roc_auc']),
+            'avg_precision': float(test_metrics['avg_precision']),
+            'false_alarm_rate': float(test_metrics['false_alarm_rate']),
+            'fraud_detection_rate': float(test_metrics['fraud_detection_rate'])
+        }
+    }
+    
+    import json
+    with open('models/metrics_summary.json', 'w') as f:
+        json.dump(metrics_summary, f, indent=4)
+    print("✓ Metrics summary saved to: models/metrics_summary.json")
+    
+    #Summary
+    print("\n" + "="*70)
+    print(" TRAINING COMPLETE!")
+    print("="*70)
+    print("\nModel Performance Summary:")
+    print(f"  Test ROC-AUC: {test_metrics['roc_auc']:.4f}")
+    print(f"  Test Average Precision: {test_metrics['avg_precision']:.4f}")
+    print(f"  Fraud Detection Rate: {test_metrics['fraud_detection_rate']:.2f}%")
+    print(f"  False Alarm Rate: {test_metrics['false_alarm_rate']:.2f}%")
+    
 
 if __name__ == "__main__": main()

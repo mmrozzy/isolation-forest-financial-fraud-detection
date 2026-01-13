@@ -1,0 +1,14 @@
+{
+    "train": {
+        "roc_auc": 0.9494604316546762,
+        "avg_precision": 0.4897144814266828,
+        "false_alarm_rate": 1.3189448441247003,
+        "fraud_detection_rate": 45.0
+    },
+    "test": {
+        "roc_auc": 0.8660714285714287,
+        "avg_precision": 0.5815937019969277,
+        "false_alarm_rate": 1.7857142857142856,
+        "fraud_detection_rate": 50.0
+    }
+}
