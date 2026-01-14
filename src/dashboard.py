@@ -2,8 +2,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+import time
 from feature_eng import load_data, prepare_features
-
 
 st.set_page_config(
     page_title="Fraud Detection Dash",
@@ -106,6 +106,43 @@ def display_stats():
         else:
             st.metric("Precision", "N/A")
 
+def process_next_transaction():
+
+    if st.session_state.current_index >= len(df_all):
+        st.session_state.is_streaming = False
+        return
+    
+    idn = st.session_state.current_index
+    transaction = df_all.iloc[idn:idn+1].copy()
+    prediction = predict_transaction(test_txn, model, scaler, encoder)
+
+    txn_data = {
+        'transaction_id': int(transaction['transaction_id'].values[0]),
+        'timestamp': str(transaction['timestamp'].values[0]),
+        'amount': float(transaction['amount'].values[0]),
+        'merchant_category': transaction['merchant_category'].values[0],
+        'location': transaction['location'].values[0],
+        'actual_fraud': bool(transaction['is_fraud'].values[0]),
+        'predicted_fraud': prediction['is_fraud'],
+        'anomaly_score': float(prediction['anomaly_score']),
+        'risk_level': prediction['risk_level']
+    }
+
+    st.session_state.processed_transactions.append(txn_data)
+    st.session_state.stats['total_processed'] += 1
+    
+    if txn_data['actual_fraud']:
+        st.session_state.stats['total_actual_fraud'] += 1
+    
+    if txn_data['predicted_fraud']:
+        st.session_state.stats['total_fraud_detected'] += 1
+        st.session_state.fraud_alerts.append(txn_data)
+        
+        if not txn_data['actual_fraud']:
+            st.session_state.stats['total_false_alarms'] += 1
+    
+    st.session_state.current_index += 1
+
 with st.spinner("Loading models and data...."):
     model, scaler, encoder, feature_names = load_models()
     df_all = load_transaction_data()
@@ -199,7 +236,39 @@ display_stats()
 
 st.markdown("---")
 
-st.subheader("Test Prediction")
+st.subheader("Recent Transactions")
+
+if len(st.session_state.processed_transactions) == 0:
+    st.info("No transactions yet - start the stream with 'Start'")
+else:
+    recent = st.session_state.processed_transactions[-5:][::-1]
+
+    for txn in recent:
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            st.write(f"#{txn['transaction_id']}")
+        
+        with col2:
+            st.write(f"${txn['amount']:.2f}")
+            st.write(f"{txn['merchant_category']}")
+        
+        with col3:
+            st.write(f"Risk: {txn['risk_level']}")
+            st.write(f"Score: {txn['anomaly_score']:.3f}")
+        
+        with col4:
+            if txn['predicted_fraud']:
+                st.error("Predicted Fraud")
+            else:
+                st.success("Predicted Normal")
+            if txn['actual_fraud']:
+                st.error("Actual Fraud")
+            else:
+                st.success("Normal")
+        
+st.markdown("---")
+
+st.subheader("Test Prediction (Random)")
 test_txn = df_all.sample(random_state=None).copy() #df not series
 prediction = predict_transaction(test_txn, model, scaler, encoder)
 
@@ -228,7 +297,10 @@ with col3:
 
 st.markdown("---")
 
-
 st.subheader("Sample Transactions")
 st.dataframe(df_all.sample(10), use_container_width=True)
 
+if st.session_state.is_streaming:
+    process_next_transaction()
+    time.sleep(1.0 / stream_speed)
+    st.rerun()
