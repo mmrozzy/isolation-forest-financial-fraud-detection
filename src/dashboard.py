@@ -18,7 +18,6 @@ def load_models():
         scaler = joblib.load('models/scaler.pkl')
         encoder = joblib.load('models/encoder.pkl')
         feature_names = joblib.load('models/feature_names.pkl')
-        st.success("Loaded models.")
         return model, scaler, encoder, feature_names
     except FileNotFoundError as e:
         st.error(f"Model files not found: {e}")
@@ -29,7 +28,6 @@ def load_models():
 def load_transaction_data():
     try:
         df = load_data('data/transactions.csv')
-        st.success(f"Loaded {len(df)} transactions.")
         return df
     except FileNotFoundError as e:
         st.error("Transaction file not found")
@@ -70,6 +68,44 @@ def predict_transaction(transaction_df, model, scaler, encoder):
         'color': color
     }
     
+def display_stats():
+    stats = st.session_state.stats
+    col1, col2, col3, col4  = st.columns(4)
+
+    with col1: 
+        st.metric(
+            "Transactions Processed",
+            f"{stats['total_processed']:,}"
+        )
+
+    with col2:
+        fraud_pct = stats['total_fraud_detected']/max(stats['total_processed'], 1)*100
+        st.metric(
+            "Fraud Detected",
+            stats['total_fraud_detected'],
+            delta=f"{fraud_pct:.1f}%"
+        )
+
+    with col3: 
+        if stats['total_actual_fraud'] > 0:
+            detection_rate = (stats['total_fraud_detected'] - stats['total_false_alarms']) / stats['total_actual_fraud'] * 100
+            st.metric(
+                "Detection Rate",
+                f"{detection_rate:.1f}"
+            )
+        else:
+            st.metric("Detection Rate", "N/A")
+
+    with col4:
+        if stats['total_fraud_detected'] > 0:
+            precision = (stats['total_fraud_detected'] - stats['total_false_alarms']) / stats['total_fraud_detected'] * 100
+            st.metric(
+                "Precision",
+                f"{precision:.1f}%"
+            )
+        else:
+            st.metric("Precision", "N/A")
+
 with st.spinner("Loading models and data...."):
     model, scaler, encoder, feature_names = load_models()
     df_all = load_transaction_data()
@@ -90,10 +126,10 @@ if 'stats' not in st.session_state:
         'total_false_alarms': 0
     }
 
-
 st.title("Fraud Detection Dash")
 st.markdown("**Real-time transaction monitoring with ML-powered detection**")
 st.markdown("---")
+
 
 with st.sidebar:
     st.header("Controls")
@@ -156,7 +192,12 @@ with col3:
 with col4:
     fraud_count = df_all['is_fraud'].sum()
     st.metric("Fraud in Dataset", fraud_count)
+st.markdown("---")
 
+st.subheader("Live Statistics")
+display_stats()
+
+st.markdown("---")
 
 st.subheader("Test Prediction")
 test_txn = df_all.sample(random_state=None).copy() #df not series
