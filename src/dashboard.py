@@ -34,8 +34,6 @@ def load_transaction_data():
         st.info("Run generating script first")
         st.stop()
 
-# == HELPERS ==
-
 def get_risk_level(anomoly_score):
     score = -anomoly_score
     if score > 0.5:
@@ -114,7 +112,7 @@ def process_next_transaction():
     
     idn = st.session_state.current_index
     transaction = df_all.iloc[idn:idn+1].copy()
-    prediction = predict_transaction(test_txn, model, scaler, encoder)
+    prediction = predict_transaction(transaction, model, scaler, encoder)
 
     txn_data = {
         'transaction_id': int(transaction['transaction_id'].values[0]),
@@ -142,6 +140,36 @@ def process_next_transaction():
             st.session_state.stats['total_false_alarms'] += 1
     
     st.session_state.current_index += 1
+
+def display_fraud_alerts():
+    if len(st.session_state.fraud_alerts) == 0:
+        st.info("No fraud detected yet")
+        return
+    
+    st.markdown(f"**{len(st.session_state.fraud_alerts)} total alerts**")
+    
+    for alert in st.session_state.fraud_alerts[-10:][::-1]:
+        with st.expander(
+            f"Transaction #{alert['transaction_id']} - ${alert['amount']:.2f}",
+            expanded=False
+        ):
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write(f"**Risk Level:** {alert['risk_level']}")
+                st.write(f"**Score:** {alert['anomaly_score']:.4f}")
+                st.write(f"**Category:** {alert['merchant_category']}")
+                st.write(f"**Location:** {alert['location']}")
+            
+            with col2:
+                st.write(f"**Time:** {alert['timestamp'][:19]}")
+                st.write(f"**User ID:** {alert.get('user_id', 'N/A')}")
+                
+                if alert['actual_fraud']:
+                    st.success("Confirmed Fraud")
+                else:
+                    st.warning("False Alarm")
+
 
 with st.spinner("Loading models and data...."):
     model, scaler, encoder, feature_names = load_models()
@@ -268,37 +296,37 @@ else:
         
 st.markdown("---")
 
-st.subheader("Test Prediction (Random)")
-test_txn = df_all.sample(random_state=None).copy() #df not series
-prediction = predict_transaction(test_txn, model, scaler, encoder)
+# st.subheader("Test Prediction (Random)")
+# test_txn = df_all.sample(random_state=None).copy() #df not series
+# prediction = predict_transaction(test_txn, model, scaler, encoder)
 
-col1, col2, col3 = st.columns(3)
+# col1, col2, col3 = st.columns(3)
 
-with col1:
-    st.metric("Transaction Amount", f"${test_txn['amount'].values[0]:.2f}")
-    st.write(f"Category: {test_txn['merchant_category'].values[0]}")
-    st.write(f"Location: {test_txn['location'].values[0]}")
+# with col1:
+#     st.metric("Transaction Amount", f"${test_txn['amount'].values[0]:.2f}")
+#     st.write(f"Category: {test_txn['merchant_category'].values[0]}")
+#     st.write(f"Location: {test_txn['location'].values[0]}")
 
-with col2:
-    st.metric("Prediction", 
-              "FRAUD" if prediction['is_fraud'] else "NORMAL",
-              delta=None)
-    st.write(f"Risk Level: {prediction['risk_level']}")
-    st.write(f"Anomaly Score: {prediction['anomaly_score']:.4f}")
+# with col2:
+#     st.metric("Prediction", 
+#               "FRAUD" if prediction['is_fraud'] else "NORMAL",
+#               delta=None)
+#     st.write(f"Risk Level: {prediction['risk_level']}")
+#     st.write(f"Anomaly Score: {prediction['anomaly_score']:.4f}")
 
-with col3:
-    actual = "FRAUD" if test_txn['is_fraud'].values[0] else "NORMAL"
-    st.metric("Actual Label", actual)
+# with col3:
+#     actual = "FRAUD" if test_txn['is_fraud'].values[0] else "NORMAL"
+#     st.metric("Actual Label", actual)
     
-    if prediction['is_fraud'] == test_txn['is_fraud'].values[0]:
-        st.success("✅ Correct prediction!")
-    else:
-        st.error("❌ Incorrect prediction")
+#     if prediction['is_fraud'] == test_txn['is_fraud'].values[0]:
+#         st.success("✅ Correct prediction!")
+#     else:
+#         st.error("❌ Incorrect prediction")
 
-st.markdown("---")
+# st.markdown("---")
 
-st.subheader("Sample Transactions")
-st.dataframe(df_all.sample(10), use_container_width=True)
+# st.subheader("Sample Transactions")
+# st.dataframe(df_all.sample(10), use_container_width=True)
 
 if st.session_state.is_streaming:
     process_next_transaction()
