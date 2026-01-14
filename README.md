@@ -4,9 +4,9 @@ A hands-on project to explore machine learning-based fraud detection with synthe
 
 ## What's This?
 
-This is a learning exercise that walks through the complete workflow of building a fraud detection system:
+This is a personal learning exercise that goes through the complete workflow of building a fraud detection system:
 - Generating synthetic transaction data
-- Training an anomaly detection model
+- Training an ML anomaly detection model
 - Building a real-time monitoring dashboard
 
 Perfect for understanding how ML can be applied to financial fraud detection.
