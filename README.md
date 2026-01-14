@@ -1,6 +1,6 @@
 # Fraud Detection Exercise - Work in Progress
 
-A hands-on project to explore machine learning-based fraud detection with synthetic transaction data. Work in progress.
+Project to explore machine learning-based fraud detection with synthetic transaction data. Work in progress.
 
 ## What's This?
 
@@ -31,11 +31,11 @@ fraud-detection-exercise/
 
 ## How It Works
 
-**Data Generation**: Uses Faker to create realistic transaction data including amounts, merchant categories, locations, and timestamps.
+**Data Generation**: Uses Faker to create fraudulent and non-fruadulent realistic transaction data including amounts, merchant categories, locations, and timestamps.
 
 **Model**: Isolation Forest algorithm detects anomalies by identifying transactions that don't fit normal patterns. One-class svm also coded, but yields worse performance.
 
-**Dashboard**: Streamlit app simulates real-time transaction processing, showing predictions, statistics, and fraud alerts.
+**Dashboard**: Streamlit app simulates real-time transaction processing, showing predictions, statistics, and fraud alerts (to be added).
 
 ## Skills Learned
 
@@ -47,7 +47,7 @@ fraud-detection-exercise/
 
 ## Tech Stack
 
-- **Python 3.x**
+- **Python**
 - **pandas** - Data manipulation
 - **scikit-learn** - ML models
 - **Streamlit** - Dashboard interface
