@@ -9,8 +9,6 @@ This is a personal learning exercise that goes through the complete workflow of 
 - Training an ML anomaly detection model
 - Building a real-time monitoring dashboard
 
-Perfect for understanding how ML can be applied to financial fraud detection.
-
 ## Project Structure
 
 ```
@@ -70,7 +68,7 @@ Two anomaly detection models were trained and evaluated on the synthetic transac
 - **Test ROC-AUC**: 93.59%
 - **Fraud Detection Rate**: 80.21%
 - **False Alarm Rate**: 6.93%
-- **Average Precision**: 58.86%
+- **Average Precision**: **58.86%**
 
 ### One-Class SVM (Baseline)
 - **Test ROC-AUC**: 85.16%
