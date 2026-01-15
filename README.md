@@ -62,6 +62,26 @@ This is an educational project using synthetic data. Real-world fraud detection 
 - Regular model retraining
 - Integration with existing systems
 
+## Model Results
+
+Two anomaly detection models were trained and evaluated on the synthetic transaction data:
+
+### Isolation Forest (Primary Model)
+- **Test ROC-AUC**: 93.59%
+- **Fraud Detection Rate**: 80.21%
+- **False Alarm Rate**: 6.93%
+- **Average Precision**: 58.86%
+
+### One-Class SVM (Baseline)
+- **Test ROC-AUC**: 85.16%
+- **Fraud Detection Rate**: 61.46%
+- **False Alarm Rate**: 7.31%
+- **Average Precision**: 22.14%
+
+The Isolation Forest model significantly outperforms One-Class SVM across all metrics, making it the chosen approach for the dashboard. The model achieves a good balance between detecting fraud (80% detection rate) and minimizing false alarms (~7%).
+
+**Note**: Currently working on improving model performance through feature engineering and hyperparameter tuning.
+
 ## Next Steps
 
 To be added:
