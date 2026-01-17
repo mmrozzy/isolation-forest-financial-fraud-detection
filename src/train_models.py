@@ -24,7 +24,7 @@ def temporal_train_test_split(df, test_months=2):
 def train_isolation_forest(X_train, contamination = 0.025):
     model = IsolationForest(
         n_estimators=200,
-        contamination=contamination,
+        contamination=contamination*2,
         max_samples='auto',
         random_state=42,
         n_jobs=1,
@@ -236,7 +236,7 @@ def main():
         encoder=encoder
     )
 
-    model_if = train_isolation_forest(X_train, contamination=0.05)
+    model_if = train_isolation_forest(X_train)
     model_svm = train_one_class_svm(X_train, nu=0.05)
     
     train_metrics_if = eval_model(model_if, X_train, y_train, "Training (IF)")
