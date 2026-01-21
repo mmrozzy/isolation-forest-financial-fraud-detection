@@ -26,7 +26,18 @@ def _sort_by_user_and_time(df):
     return df
 
 def load_data(filepath=FILEPATH):
-    df = pd.read_csv(filepath)
+    try:
+        df = pd.read_csv(filepath)
+    except FileNotFoundError:
+        logger.error(f"File not found: {filepath}")
+        raise
+    except pd.errors.EmptyDataError:
+        logger.error(f"File is empty: {filepath}")
+        raise
+    except Exception as e:
+        logger.error(f"Error reading file {filepath}: {e}")
+        raise
+
     df['timestamp'] = pd.to_datetime(df['timestamp'])
     df = df.sort_values('timestamp').reset_index(drop=True)
     return df
@@ -85,15 +96,15 @@ def create_category_features(df):
     df['is_high_risk_category'] = df['merchant_category'].isin(high_risk_categories).astype(int)
     
     df_temp = df[['user_id', 'timestamp', 'merchant_category']].copy()
-    unique_cats = []
+    unique_categories = []
     for idx, row in df.iterrows():
         user_mask = df_temp['user_id'] == row['user_id']
         time_mask = (df_temp['timestamp'] < row['timestamp']) & \
                    (df_temp['timestamp'] >= row['timestamp'] - pd.Timedelta(days=1))
         cats_in_window = df_temp.loc[user_mask & time_mask, 'merchant_category'].nunique()
-        unique_cats.append(cats_in_window)
+        unique_categories.append(cats_in_window)
     
-    df['unique_categories_last_day'] = unique_cats
+    df['unique_categories_last_day'] = unique_categories
     
     return df
 
@@ -215,6 +226,15 @@ def prepare_features(df, fit_scaler=True, scaler=None, fit_encoder=True, encoder
     return X_scaled, y, feature_cols, scaler, encoder
 
 if __name__ == '__main__':
-    df = load_data()
-    X, y, features, scaler, encoder = prepare_features(df)
-    joblib.dump(scaler, SCALER_PATH)
+    try:
+        df = load_data()
+        X, y, features, scaler, encoder = prepare_features(df)
+        os.makedirs(os.path.dirname(SCALER_PATH), exist_ok=True)
+        joblib.dump(scaler, SCALER_PATH)
+    except FileNotFoundError:
+        logger.error("Data file not found. Can't proceed")
+        exit(1)
+    except Exception as e: 
+        logger.error(f"Feature engineering failed: {e}", exc_info=True)
+        exit(1)
+
