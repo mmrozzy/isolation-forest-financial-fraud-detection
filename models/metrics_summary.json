@@ -1,30 +1,30 @@
 {
     "isolation_forest": {
         "train": {
-            "roc_auc": 0.9917621717125067,
-            "avg_precision": 0.917493632934646,
-            "false_alarm_rate": 2.790192052180215,
-            "fraud_detection_rate": 95.09803921568627
+            "roc_auc": 0.9910711959623807,
+            "avg_precision": 0.9183134385280856,
+            "false_alarm_rate": 2.8143495591254983,
+            "fraud_detection_rate": 94.11764705882352
         },
         "test": {
-            "roc_auc": 0.9726688102893891,
-            "avg_precision": 0.8471996965905065,
-            "false_alarm_rate": 4.501607717041801,
-            "fraud_detection_rate": 91.66666666666666
+            "roc_auc": 0.9711433060508623,
+            "avg_precision": 0.8523737539618007,
+            "false_alarm_rate": 5.261619409529377,
+            "fraud_detection_rate": 92.70833333333334
         }
     },
     "one_class_svm": {
         "train": {
-            "roc_auc": 0.9633362464444649,
-            "avg_precision": 0.4174207242078625,
-            "false_alarm_rate": 3.2733421910858795,
-            "fraud_detection_rate": 77.45098039215686
+            "roc_auc": 0.951542291031644,
+            "avg_precision": 0.3407174377105033,
+            "false_alarm_rate": 3.4666022466481463,
+            "fraud_detection_rate": 71.56862745098039
         },
         "test": {
-            "roc_auc": 0.9258714557147033,
-            "avg_precision": 0.26828881374022506,
-            "false_alarm_rate": 6.1677871967261035,
-            "fraud_detection_rate": 73.95833333333334
+            "roc_auc": 0.9118709198090226,
+            "avg_precision": 0.2384926175264474,
+            "false_alarm_rate": 6.284712072493423,
+            "fraud_detection_rate": 67.70833333333334
         }
     }
 }

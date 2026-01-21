@@ -8,3 +8,4 @@ __pycache__/
 
 data/transactions.csv
 models/scaler.pkl
+todo.md
