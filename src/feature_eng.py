@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import os
+import logging
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 import joblib
 
@@ -9,6 +10,15 @@ SCALER_PATH = os.path.join('models', 'scaler.pkl')
 
 LARGE_TIME_DELTA_MINUTES = 10000
 RAPID_TRANSACTION_THRESHOLD_MINUTES = 5
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler() 
+    ]
+)
+logger = logging.getLogger(__name__)
 
 def _sort_by_user_and_time(df):
     df = df.copy()
@@ -146,19 +156,27 @@ def encode_categorical(df, fit_encoder=True, encoder=None):
     return df, encoder
 
 def prepare_features(df, fit_scaler=True, scaler=None, fit_encoder=True, encoder=None):
-    print("Creating time features...")
+    logger.info("Starting feature engineering pipeline")
+    
+    logger.info("Creating time features...")
     df = create_time_features(df)
-    print("Creating user behavior features...")
+    
+    logger.info("Creating user behavior features...")
     df = create_user_features(df)
-    print("Creating velocity features...")
+    
+    logger.info("Creating velocity features...")
     df = create_velocity_features(df)
-    print("Creating category features...")
+    
+    logger.info("Creating category features...")
     df = create_category_features(df)
-    print("Creating fraud indicators...")
+    
+    logger.info("Creating fraud indicators...")
     df = create_fraud_indicator_features(df)
-    print("Creating location features...")
+    
+    logger.info("Creating location features...")
     df = create_location_features(df)
-    print("Encoding categorical variables...")
+    
+    logger.info("Encoding categorical variables...")
     df, encoder = encode_categorical(df, fit_encoder=fit_encoder, encoder=encoder)
     
     feature_cols = [
@@ -193,10 +211,10 @@ def prepare_features(df, fit_scaler=True, scaler=None, fit_encoder=True, encoder
     
     X_scaled = pd.DataFrame(X_scaled, columns=feature_cols, index=X.index)
     
+    logger.info(f"Feature engineering complete. Shape: {X.shape}")
     return X_scaled, y, feature_cols, scaler, encoder
 
 if __name__ == '__main__':
     df = load_data()
     X, y, features, scaler, encoder = prepare_features(df)
-    print(X.head())
     joblib.dump(scaler, SCALER_PATH)
