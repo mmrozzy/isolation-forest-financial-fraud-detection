@@ -7,7 +7,10 @@ import joblib
 FILEPATH = os.path.join('data','transactions.csv')
 SCALER_PATH = os.path.join('models', 'scaler.pkl')
 
-def copy_sort(df):
+LARGE_TIME_DELTA_MINUTES = 10000
+RAPID_TRANSACTION_THRESHOLD_MINUTES = 5
+
+def _sort_by_user_and_time(df):
     df = df.copy()
     df = df.sort_values(['user_id', 'timestamp']).reset_index(drop=True)
     return df
@@ -32,7 +35,7 @@ def create_time_features(df):
     return df
 
 def create_user_features(df):
-    df = copy_sort(df)
+    df = _sort_by_user_and_time(df)
     df['user_transaction_count'] = df.groupby('user_id').cumcount()
     df['user_avg_amount'] = df.groupby('user_id')['amount'].transform( lambda x: x.expanding().mean().shift(1)) #shift to lose current entry (previous for comparison)
     df['user_std_amount'] = df.groupby('user_id')['amount'].transform( lambda x: x.expanding().std().shift(1) ) 
@@ -49,10 +52,10 @@ def create_user_features(df):
     return df
 
 def create_velocity_features(df):
-    df = copy_sort(df)
+    df = _sort_by_user_and_time(df)
 
     df['time_diff'] = df.groupby('user_id')['timestamp'].diff().dt.total_seconds() / 60  #mins
-    df['time_diff'] = df['time_diff'].fillna(10000)
+    df['time_diff'] = df['time_diff'].fillna(LARGE_TIME_DELTA_MINUTES)
 
     df = df.set_index('timestamp')
     df['transactions_last_hour'] = ( 
@@ -63,7 +66,7 @@ def create_velocity_features(df):
     return df
 
 def create_category_features(df):
-    df = copy_sort(df)
+    df = _sort_by_user_and_time(df)
     
     df['category_seen_count'] = df.groupby(['user_id', 'merchant_category']).cumcount()
     df['is_new_category'] = (df['category_seen_count'] == 0).astype(int)
@@ -84,8 +87,8 @@ def create_category_features(df):
     
     return df
 
-def create_fraud_indicators(df):
-    df = copy_sort(df)
+def create_fraud_indicator_features(df):
+    df = _sort_by_user_and_time(df)
     
     df['is_round_amount'] = (df['amount'] % 100 == 0).astype(int)
     df['is_high_value'] = (df['amount'] > df['amount'].quantile(0.95)).astype(int)
@@ -102,12 +105,12 @@ def create_fraud_indicators(df):
     df = df.reset_index()
     
     df['amount_vs_hourly_avg'] = df['amount'] / (df['amount_last_hour'] / df['transactions_last_hour'].replace(0, 1) + 1)
-    df['is_rapid_transaction'] = (df['time_diff'] < 5).astype(int) 
+    df['is_rapid_transaction'] = (df['time_diff'] < RAPID_TRANSACTION_THRESHOLD_MINUTES).astype(int) 
     
     return df
 
 def create_location_features(df):
-    df = copy_sort(df)
+    df = _sort_by_user_and_time(df)
     
     df['location_frequency'] = df.groupby(['user_id', 'location']).cumcount()
     df['is_new_location'] = (df['location_frequency'] == 0).astype(int)
@@ -152,7 +155,7 @@ def prepare_features(df, fit_scaler=True, scaler=None, fit_encoder=True, encoder
     print("Creating category features...")
     df = create_category_features(df)
     print("Creating fraud indicators...")
-    df = create_fraud_indicators(df)
+    df = create_fraud_indicator_features(df)
     print("Creating location features...")
     df = create_location_features(df)
     print("Encoding categorical variables...")
