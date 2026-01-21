@@ -68,6 +68,20 @@ def create_category_features(df):
     df['category_seen_count'] = df.groupby(['user_id', 'merchant_category']).cumcount()
     df['is_new_category'] = (df['category_seen_count'] == 0).astype(int)
     
+    high_risk_categories = ['electronics', 'jewelry', 'travel', 'online']
+    df['is_high_risk_category'] = df['merchant_category'].isin(high_risk_categories).astype(int)
+    
+    df_temp = df[['user_id', 'timestamp', 'merchant_category']].copy()
+    unique_cats = []
+    for idx, row in df.iterrows():
+        user_mask = df_temp['user_id'] == row['user_id']
+        time_mask = (df_temp['timestamp'] < row['timestamp']) & \
+                   (df_temp['timestamp'] >= row['timestamp'] - pd.Timedelta(days=1))
+        cats_in_window = df_temp.loc[user_mask & time_mask, 'merchant_category'].nunique()
+        unique_cats.append(cats_in_window)
+    
+    df['unique_categories_last_day'] = unique_cats
+    
     return df
 
 def create_fraud_indicators(df):
@@ -97,28 +111,6 @@ def create_location_features(df):
     
     df['location_frequency'] = df.groupby(['user_id', 'location']).cumcount()
     df['is_new_location'] = (df['location_frequency'] == 0).astype(int)
-    
-    return df
-
-def create_category_risk_features(df):
-    df = df.copy()
-    
-    high_risk_categories = ['electronics', 'jewelry', 'travel', 'online']
-    df['is_high_risk_category'] = df['merchant_category'].isin(high_risk_categories).astype(int)
-    
-    df = df.sort_values(['user_id', 'timestamp']).reset_index(drop=True)
-    
-    df_temp = df[['user_id', 'timestamp', 'merchant_category']].copy()
-    
-    unique_cats = []
-    for idx, row in df.iterrows():
-        user_mask = df_temp['user_id'] == row['user_id']
-        time_mask = (df_temp['timestamp'] < row['timestamp']) & \
-                   (df_temp['timestamp'] >= row['timestamp'] - pd.Timedelta(days=1))
-        cats_in_window = df_temp.loc[user_mask & time_mask, 'merchant_category'].nunique()
-        unique_cats.append(cats_in_window)
-    
-    df['unique_categories_last_day'] = unique_cats
     
     return df
 
@@ -163,8 +155,6 @@ def prepare_features(df, fit_scaler=True, scaler=None, fit_encoder=True, encoder
     df = create_fraud_indicators(df)
     print("Creating location features...")
     df = create_location_features(df)
-    print("Creating category risk features...")
-    df = create_category_risk_features(df)
     print("Encoding categorical variables...")
     df, encoder = encode_categorical(df, fit_encoder=fit_encoder, encoder=encoder)
     
