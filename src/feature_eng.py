@@ -65,7 +65,6 @@ def create_velocity_features(df):
 def create_category_features(df):
     df = copy_sort(df)
     
-    # Count how many times each user-category combination has appeared (excluding current row)
     df['category_seen_count'] = df.groupby(['user_id', 'merchant_category']).cumcount()
     df['is_new_category'] = (df['category_seen_count'] == 0).astype(int)
     
@@ -77,7 +76,6 @@ def create_fraud_indicators(df):
     df['is_round_amount'] = (df['amount'] % 100 == 0).astype(int)
     df['is_high_value'] = (df['amount'] > df['amount'].quantile(0.95)).astype(int)
     
-    # Use rolling windows for amount aggregations
     df = df.set_index('timestamp')
     df['amount_last_hour'] = (
         df.groupby('user_id')['amount'].rolling('1h', closed='left').sum()
@@ -97,7 +95,6 @@ def create_fraud_indicators(df):
 def create_location_features(df):
     df = copy_sort(df)
     
-    # Count how many times each user-location combination has appeared (excluding current row)
     df['location_frequency'] = df.groupby(['user_id', 'location']).cumcount()
     df['is_new_location'] = (df['location_frequency'] == 0).astype(int)
     
@@ -111,10 +108,8 @@ def create_category_risk_features(df):
     
     df = df.sort_values(['user_id', 'timestamp']).reset_index(drop=True)
     
-    # Count unique categories in last day using merge_asof approach
     df_temp = df[['user_id', 'timestamp', 'merchant_category']].copy()
     
-    # For each row, count unique categories in the previous day
     unique_cats = []
     for idx, row in df.iterrows():
         user_mask = df_temp['user_id'] == row['user_id']
